@@ -26,7 +26,7 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     keywords='uml,yuml,django',
-    author='Nikolajus Krauklis, Joshua Williams',
+    author='Nikolajus Krauklis, Andrea de Marco, Joshua Williams',
     author_email='williams.joshua.j@gmail.com',
     license='MIT',
     packages=find_packages(),
