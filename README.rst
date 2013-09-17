@@ -16,9 +16,9 @@ Installation
 Examples
 ================
 
-#. python manage.py yuml yourapp yoursecondapp --scruffy -s 75 -o test.png
+#. python manage.py yuml yourapp yoursecondapp -s scruffy -p 75 -o test.png
 
-#. python manage.py yuml justoneapp --scruffy -o test.pdf
+#. python manage.py yuml justoneapp -s scruffy -o test.pdf
 
 #. generate whole project yuml
    
@@ -28,6 +28,6 @@ Examples
 
 This is how looks generated diagram for command: 
 
-- python manage.py yuml auth contenttypes sessions sites messages admin --scruffy --scale 100 -o example.jpg
+#. python manage.py yuml auth contenttypes sessions sites messages admin -s scruffy -p 200 -o example.jpg
 
   http://www.gang.lt/example.jpg
