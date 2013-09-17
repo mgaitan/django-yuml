@@ -15,7 +15,6 @@ setup(
     url = 'https://github.com/olopoly/django-yuml',
     description='A manage.py command to create UML images for your models',
     long_description = LONG_DESCRIPTION,
-    install_requires = ['django'],
     classifiers=[
         "Framework :: Django",
         "License :: MIT License",
