@@ -10,7 +10,7 @@ VERSION = open('VERSION').read()
 LONG_DESCRIPTION = open('README.rst').read()
  
 setup(
-    name = 'django-yuml',
+    name = 'django_yuml',
     version = VERSION,
     url = 'https://github.com/olopoly/django-yuml',
     description='A manage.py command to create UML images for your models',
