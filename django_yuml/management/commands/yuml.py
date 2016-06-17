@@ -2,6 +2,7 @@
 
 
 """
+from __future__ import print_function
 from optparse import make_option
 
 from django.core.management.base import BaseCommand, CommandError
@@ -200,7 +201,7 @@ class Command(BaseCommand):
         else:
             try:
                 applications = [get_app(label) for label in args]
-            except ImproperlyConfigured, e:
+            except ImproperlyConfigured as e:
                 raise CommandError("Specified application not found: %s" % e)
 
         statements = self.yumlfy(applications, options['labels'])
@@ -208,7 +209,7 @@ class Command(BaseCommand):
         if options['outputfile']:
             self.render(statements, **options)
         else:
-            print statements
+            print(statements)
 
     def yumlfy(self, applications, labels):
         F = YUMLFormatter()
@@ -257,19 +258,19 @@ class Command(BaseCommand):
 
         data = urllib.urlencode({'dsl_text': dsl_text})
         url  = YUMLME_URL % options
-        print 'Calling: ', url
+        print('Calling: ', url)
         try:
             yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             raise CommandError("Error occured while creating dsl, %s" % e)
 
         png_file = yuml_response.read()
         get_file = png_file.replace('.png', output_ext)
         url = 'http://yuml.me/%s' % get_file
-        print 'Calling: ', url
+        print('Calling: ', url)
         try:
             yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError, e:
+        except urllib2.HTTPError as e:
             raise CommandError("Error occured while generating %s, %s" 
                                % (output_file, e))
 
