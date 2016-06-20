@@ -2,7 +2,6 @@
 
 
 """
-from __future__ import print_function
 from optparse import make_option
 
 from django.core.management.base import BaseCommand, CommandError
@@ -209,7 +208,7 @@ class Command(BaseCommand):
         if options['outputfile']:
             self.render(statements, **options)
         else:
-            print(statements)
+            self.stdout.write('%s' % statements)
 
     def yumlfy(self, applications, labels):
         F = YUMLFormatter()
@@ -260,7 +259,7 @@ class Command(BaseCommand):
         data = urlencode({'dsl_text': dsl_text})
         data = data.encode('ascii')
         url  = YUMLME_URL % options
-        print('Calling: ', url)
+        self.stdout.write('Calling: %s' % url)
         try:
             yuml_response = urlopen(url, data)
         except HTTPError as e:
@@ -269,7 +268,7 @@ class Command(BaseCommand):
         png_file = yuml_response.read().decode('utf-8')
         get_file = png_file.replace('.png', output_ext)
         url = 'http://yuml.me/%s' % get_file
-        print('Calling: ', url)
+        self.stdout.write('Calling: %s' % url)
         try:
             yuml_response = urlopen(url, data)
         except HTTPError as e:
