@@ -277,6 +277,6 @@ class Command(BaseCommand):
                                % (output_file, e))
 
         resp = yuml_response.read()
-        f = open(output_file, 'w+')
+        f = open(output_file, 'wb')
         f.write(resp)
         f.close()
