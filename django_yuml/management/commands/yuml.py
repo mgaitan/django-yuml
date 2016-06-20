@@ -2,8 +2,6 @@
 
 
 """
-from optparse import make_option
-
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models.fields import NOT_PROVIDED
 from django.core.exceptions import ImproperlyConfigured
@@ -163,45 +161,45 @@ class YUMLFormatter(object):
 
 
 class Command(BaseCommand):
-    option_list = BaseCommand.option_list + (
-        make_option(
+
+    def add_arguments(self, parser):
+        parser.add_argument('appname', nargs='*')
+        parser.add_argument(
             '-a', action='store_true', dest='all_applications',
             help='Automaticly include all applications from '
             'INSTALLED_APPS'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-e', action='store', dest='exclude',
             help='Exclude applications matching pattern.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-o', action='store', dest='outputfile',
             help='Render output file. Type of output dependend '
             'on file extensions. Use png,jpg or pdf to render '
             'graph to image to.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-d', action='store', dest='direction', default='TB',
             help='Choose the chart direction. Default: "TB". Available '
             'options: %s.' % get_direction_options_string()
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '--scale', '-p', action='store', dest='scale', type=int,
             default=100, help='Set a scale percentage. Applies only for -o.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '--style', '-s', action='store', dest='style', default='nofunky',
             help='Choose the output style. Default: "nofunky". Available '
             'options: %s.' % get_style_options_string()
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-l', action='append', dest='labels',
             help='Labels to add to the field attributes. Available labels: %s'
             % ', '.join(FIELD_LABELS)
         )
-    )
-    args = '[appname appname]'
+
     help = 'Generating model class diagram for yuml.me'
-    label = 'application name'
 
     def validate_options(self, **opts):
         """
@@ -225,14 +223,14 @@ class Command(BaseCommand):
         """
         self.validate_options(**options)
 
-        if len(args) < 1:
+        if len(options['appname']) < 1:
             if options['all_applications']:
                 applications = get_apps()
             else:
                 raise CommandError("Need one or more arguments for appname.")
         else:
             try:
-                applications = [get_app(label) for label in args]
+                applications = [get_app(label) for label in options['appname']]
             except ImproperlyConfigured as e:
                 raise CommandError("Specified application not found: %s" % e)
 
