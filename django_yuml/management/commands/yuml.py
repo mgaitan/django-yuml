@@ -2,9 +2,9 @@
 
 
 """
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models.fields import NOT_PROVIDED
-from django.core.exceptions import ImproperlyConfigured
 
 YUMLME_URL = "http://yuml.me/diagram/%(style)s;scale:%(scale)s;dir:%(direction)s;/class/"
 

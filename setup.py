@@ -4,8 +4,8 @@ Include utf-8 encoding for the README since we do not know the
 contents of the file.
 
 """
-from setuptools import setup, find_packages
- 
+from setuptools import find_packages, setup
+
 VERSION = open('VERSION').read() 
 LONG_DESCRIPTION = open('README.rst').read()
  
@@ -33,4 +33,3 @@ setup(
     include_package_data=True,
     zip_safe=True,
 )
-
