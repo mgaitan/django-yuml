@@ -166,7 +166,7 @@ class Command(BaseCommand):
         parser.add_argument('appname', nargs='*')
         parser.add_argument(
             '-a', action='store_true', dest='all_applications',
-            help='Automaticly include all applications from '
+            help='Automatically include all applications from '
             'INSTALLED_APPS'
         )
         parser.add_argument(
@@ -175,9 +175,8 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '-o', action='store', dest='outputfile',
-            help='Render output file. Type of output dependend '
-            'on file extensions. Use png,jpg or pdf to render '
-            'graph to image to.'
+            help='Render output file. Type of output depends '
+            'on file extension. Use png, jpg or pdf.'
         )
         parser.add_argument(
             '-d', action='store', dest='direction', default='TB',
@@ -199,7 +198,7 @@ class Command(BaseCommand):
             % ', '.join(FIELD_LABELS)
         )
 
-    help = 'Generating model class diagram for yuml.me'
+    help = 'Generate model class diagram using yUML (http://yuml.me).'
 
     def validate_options(self, **opts):
         """
@@ -294,7 +293,7 @@ class Command(BaseCommand):
         try:
             yuml_response = urlopen(url, data)
         except HTTPError as e:
-            raise CommandError("Error occured while creating dsl, %s" % e)
+            raise CommandError("Error occured while creating DSL, %s" % e)
 
         png_file = yuml_response.read().decode('utf-8')
         get_file = png_file.replace('.png', output_ext)
