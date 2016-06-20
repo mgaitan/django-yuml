@@ -167,17 +167,17 @@ class Command(BaseCommand):
         parser.add_argument(
             '-a', action='store_true', dest='all_applications',
             help='Automatically include all applications from '
-            'INSTALLED_APPS'
+            'INSTALLED_APPS.'
         )
         parser.add_argument(
             '-o', action='store', dest='outputfile',
-            help='Render output file. Type of output depends '
-            'on file extension. Use png, jpg or pdf.'
+            help='Render output file. Applies only for -o. '
+            'File format depends on file extension, use png, jpg or pdf.'
         )
         parser.add_argument(
             '-d', action='store', dest='direction', default='TB',
-            help='Choose the chart direction. Default: "TB". Available '
-            'options: %s.' % get_direction_options_string()
+            help='Choose the chart direction. Applies only for -o. Default: "TB". '
+            'Available options: %s.' % get_direction_options_string()
         )
         parser.add_argument(
             '--scale', '-p', action='store', dest='scale', type=int,
@@ -185,13 +185,14 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--style', '-s', action='store', dest='style', default='nofunky',
-            help='Choose the output style. Default: "nofunky". Available '
-            'options: %s.' % get_style_options_string()
+            help='Choose the output style. Applies only for -o. Default: "nofunky". '
+            'Available options: %s.' % get_style_options_string()
         )
         parser.add_argument(
-            '-l', action='append', dest='labels',
-            help='Labels to add to the field attributes. Available labels: %s'
-            % ', '.join(FIELD_LABELS)
+            '-l', action='append', dest='labels', metavar='LABEL',
+            help='Label to add to the field attributes. '
+            'Can be used multiple times. '
+            'Available labels: %s.' % ', '.join(FIELD_LABELS)
         )
 
     help = 'Generate model class diagram using yUML (http://yuml.me).'
