@@ -170,10 +170,6 @@ class Command(BaseCommand):
             'INSTALLED_APPS'
         )
         parser.add_argument(
-            '-e', action='store', dest='exclude',
-            help='Exclude applications matching pattern.'
-        )
-        parser.add_argument(
             '-o', action='store', dest='outputfile',
             help='Render output file. Type of output depends '
             'on file extension. Use png, jpg or pdf.'
