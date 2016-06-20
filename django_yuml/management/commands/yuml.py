@@ -248,30 +248,32 @@ class Command(BaseCommand):
         return model_list + arrow_list
 
     def render(self, statements, **options):
-        import urllib
-        import urllib2
+        from django.utils.six.moves.urllib.parse import urlencode
+        from django.utils.six.moves.urllib.request import urlopen
+        from django.utils.six.moves.urllib.error import HTTPError
         import os
 
         output_file = options['outputfile']
         output_ext  = os.path.splitext(output_file)[1]
         dsl_text    = ",".join(statements)
 
-        data = urllib.urlencode({'dsl_text': dsl_text})
+        data = urlencode({'dsl_text': dsl_text})
+        data = data.encode('ascii')
         url  = YUMLME_URL % options
         print('Calling: ', url)
         try:
-            yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError as e:
+            yuml_response = urlopen(url, data)
+        except HTTPError as e:
             raise CommandError("Error occured while creating dsl, %s" % e)
 
-        png_file = yuml_response.read()
+        png_file = yuml_response.read().decode('utf-8')
         get_file = png_file.replace('.png', output_ext)
         url = 'http://yuml.me/%s' % get_file
         print('Calling: ', url)
         try:
-            yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError as e:
-            raise CommandError("Error occured while generating %s, %s" 
+            yuml_response = urlopen(url, data)
+        except HTTPError as e:
+            raise CommandError("Error occured while generating %s, %s"
                                % (output_file, e))
 
         resp = yuml_response.read()
