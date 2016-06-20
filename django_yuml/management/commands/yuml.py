@@ -6,30 +6,63 @@ from optparse import make_option
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models.fields import NOT_PROVIDED
-from django.db.models.loading import get_models, get_apps, get_app
 from django.core.exceptions import ImproperlyConfigured
 
 YUMLME_URL = "http://yuml.me/diagram/%(style)s;scale:%(scale)s;dir:%(direction)s;/class/"
 
 STYLES = {
-    'nofunky' : 'Plain text, geometric box, plain lines',
-    'plain'   : 'Plain text, geometric box, shadowed lines',
-    'scruffy' : 'Hand-written text, paper box, shadowed lines'
+    'nofunky': 'Plain text, geometric box, plain lines',
+    'plain': 'Plain text, geometric box, shadowed lines',
+    'scruffy': 'Hand-written text, paper box, shadowed lines'
 }
 
 DIRECTIONS = {
-    'LR' : 'Left to right', 
-    'RL' : 'Right to left',
-    'TB' : 'Top down'
+    'LR': 'Left to right',
+    'RL': 'Right to left',
+    'TB': 'Top down'
 }
 
 FIELD_LABELS = ['db_index', 'null', 'default']
 
+
+def get_apps():
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db import models
+        return models.get_apps()
+    else:
+        return [app.models_module for app in apps.get_app_configs() if app.models_module]
+
+
+def get_app(app_label):
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db import models
+        return models.get_app(app_label)
+    else:
+        return apps.get_app_config(app_label).models_module
+
+
+def get_models(app_module):
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db.models import loading
+        return loading.get_models(app_module)
+    else:
+        app_label = app_module.__name__.split('.')[-2]
+        return apps.get_app_config(app_label).get_models()
+
+
 def get_style_options_string():
     return ', '.join('"%s" - (%s)' % (k, v) for k, v in STYLES.items())
 
+
 def get_direction_options_string():
     return ', '.join('"%s" - (%s)' % (k, v) for k, v in DIRECTIONS.items())
+
 
 class YUMLFormatter(object):
     START      = '['
@@ -80,7 +113,7 @@ class YUMLFormatter(object):
         else:
             t = field.__class__.__name__
             t = t.replace('Field', '')
-        
+
         if labels:
             field_labels = []
             for label in labels:
@@ -102,10 +135,10 @@ class YUMLFormatter(object):
         cardinality symm and related
         '''
         d = {
-            'card_from' :'',
-            'related'   : relation.related_name or '',
-            'card_to'   :'',
-            'symm'      :'',
+            'card_from': '',
+            'related': relation.related_name or '',
+            'card_to': '',
+            'symm': '',
         }
         return kls.RELATION % d
 
@@ -115,8 +148,8 @@ class YUMLFormatter(object):
         cardinality symm and related
         '''
         d = {
-            'related'   : relation.related_name or '',
-            'symm'      :'',
+            'related': relation.related_name or '',
+            'symm': '',
         }
         return kls.THROUGH % d
 
@@ -152,7 +185,7 @@ class Command(BaseCommand):
             'options: %s.' % get_direction_options_string()
         ),
         make_option(
-            '--scale', '-p', action='store', dest='scale', type=int, 
+            '--scale', '-p', action='store', dest='scale', type=int,
             default=100, help='Set a scale percentage. Applies only for -o.'
         ),
         make_option(
@@ -253,12 +286,12 @@ class Command(BaseCommand):
         import os
 
         output_file = options['outputfile']
-        output_ext  = os.path.splitext(output_file)[1]
-        dsl_text    = ",".join(statements)
+        output_ext = os.path.splitext(output_file)[1]
+        dsl_text = ",".join(statements)
 
         data = urlencode({'dsl_text': dsl_text})
         data = data.encode('ascii')
-        url  = YUMLME_URL % options
+        url = YUMLME_URL % options
         self.stdout.write('Calling: %s' % url)
         try:
             yuml_response = urlopen(url, data)
