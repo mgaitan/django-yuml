@@ -235,7 +235,7 @@ class Command(BaseCommand):
         if options['outputfile']:
             self.render(statements, **options)
         else:
-            self.stdout.write('%s' % statements)
+            self.stdout.write('\n'.join(statements))
 
     def yumlfy(self, applications, labels):
         F = YUMLFormatter()
