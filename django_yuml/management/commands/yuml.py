@@ -62,6 +62,16 @@ def get_direction_options_string():
     return ', '.join('"%s" - (%s)' % (k, v) for k, v in DIRECTIONS.items())
 
 
+def get_explicit_direct_concrete_fields(model_class):
+    return [f for f
+            in model_class._meta.get_fields()
+            if (not f.auto_created or f.concrete)  # exclude reverse fields
+                and not (f.is_relation and f.many_to_many)  # exclude m2m fields
+                and not (f.is_relation and f.one_to_many)  # exclude generic relations
+                and not (f.is_relation and f.many_to_one and f.related_model is None)  # exclude generic FKs
+           ]
+
+
 class YUMLFormatter(object):
     START      = '['
     END        = ']'
@@ -241,19 +251,19 @@ class Command(BaseCommand):
         F = YUMLFormatter()
         model_list = []
         arrow_list = []
-        external_model = set()
+        external_models = set()
         for app_module in applications:
             models = get_models(app_module)
             for m in models:
                 string = F.label(m) + F.PIPE
-                fields = [f for f in m._meta.fields if not f.auto_created]
+                fields = get_explicit_direct_concrete_fields(m)
                 for field in fields:
                     string += F.field(field, labels=labels)
-                    if field.rel:
+                    if field.is_relation:
                         arrow_list.append(F.relation(m, field.rel))
                         if get_app(field.rel.to._meta.app_label) not in applications:
-                            external_model.add(field.rel.to)
-                fields = [f for f in m._meta.many_to_many]
+                            external_models.add(field.rel.to)
+                fields = [f for f in m._meta.get_fields() if f.is_relation and f.many_to_many and not f.auto_created]
                 for field in fields:
                     string += F.field(field)
                     if field.rel.through._meta.auto_created:
@@ -261,14 +271,14 @@ class Command(BaseCommand):
                     else:
                         arrow_list.append(F.through(m, field.rel))
                     if get_app(field.rel.to._meta.app_label) not in applications:
-                        external_model.add(field.rel.to)
+                        external_models.add(field.rel.to)
                 model_list.append(F.wrap(string))
                 for parent in m._meta.parents:
                     arrow_list.append(F.inherit(m, parent))
                     if get_app(parent._meta.app_label) not in applications:
-                        external_model.add(parent)
+                        external_models.add(parent)
 
-        for ext in external_model:
+        for ext in external_models:
             model_list.append(F.external(ext))
 
         return model_list + arrow_list
