@@ -2,51 +2,75 @@
 
 
 """
-
-import os
-from six.moves.urllib.request import urlopen
-from six.moves.urllib.parse import urlencode
-from six.moves.urllib.error import HTTPError
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models.fields import NOT_PROVIDED
-from django.core.exceptions import ImproperlyConfigured
-
-
-
-try:
-    from django.db.models.loading import get_models, get_apps, get_app
-except ImportError:
-    from django.apps import apps
-    get_models = apps.get_models
-
-    def get_apps():
-        return apps.app_configs.keys()
-
-    def get_app(app):
-        return apps.app_configs[app]
-
 
 YUMLME_URL = "http://yuml.me/diagram/%(style)s;scale:%(scale)s;dir:%(direction)s;/class/"
 
 STYLES = {
-    'nofunky' : 'Plain text, geometric box, plain lines',
-    'plain'   : 'Plain text, geometric box, shadowed lines',
-    'scruffy' : 'Hand-written text, paper box, shadowed lines'
+    'nofunky': 'Plain text, geometric box, plain lines',
+    'plain': 'Plain text, geometric box, shadowed lines',
+    'scruffy': 'Hand-written text, paper box, shadowed lines'
 }
 
 DIRECTIONS = {
-    'LR' : 'Left to right',
-    'RL' : 'Right to left',
-    'TB' : 'Top down'
+    'LR': 'Left to right',
+    'RL': 'Right to left',
+    'TB': 'Top down'
 }
 
 FIELD_LABELS = ['db_index', 'null', 'default']
 
+
+def get_apps():
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db import models
+        return models.get_apps()
+    else:
+        return [app.models_module for app in apps.get_app_configs() if app.models_module]
+
+
+def get_app(app_label):
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db import models
+        return models.get_app(app_label)
+    else:
+        return apps.get_app_config(app_label).models_module
+
+
+def get_models(app_module):
+    try:
+        from django.apps import apps
+    except ImportError:
+        from django.db.models import loading
+        return loading.get_models(app_module)
+    else:
+        app_label = app_module.__name__.split('.')[-2]
+        return apps.get_app_config(app_label).get_models()
+
+
 def get_style_options_string():
     return ', '.join('"%s" - (%s)' % (k, v) for k, v in STYLES.items())
 
+
 def get_direction_options_string():
     return ', '.join('"%s" - (%s)' % (k, v) for k, v in DIRECTIONS.items())
+
+
+def get_explicit_direct_concrete_fields(model_class):
+    return [f for f
+            in model_class._meta.get_fields()
+            if (not f.auto_created or f.concrete)  # exclude reverse fields
+                and not (f.is_relation and f.many_to_many)  # exclude m2m fields
+                and not (f.is_relation and f.one_to_many)  # exclude generic relations
+                and not (f.is_relation and f.many_to_one and f.related_model is None)  # exclude generic FKs
+           ]
+
 
 class YUMLFormatter(object):
     START      = '['
@@ -119,10 +143,10 @@ class YUMLFormatter(object):
         cardinality symm and related
         '''
         d = {
-            'card_from' :'',
-            'related'   : relation.related_name or '',
-            'card_to'   :'',
-            'symm'      :'',
+            'card_from': '',
+            'related': relation.related_name or '',
+            'card_to': '',
+            'symm': '',
         }
         return kls.RELATION % d
 
@@ -132,8 +156,8 @@ class YUMLFormatter(object):
         cardinality symm and related
         '''
         d = {
-            'related'   : relation.related_name or '',
-            'symm'      :'',
+            'related': relation.related_name or '',
+            'symm': '',
         }
         return kls.THROUGH % d
 
@@ -149,22 +173,21 @@ class YUMLFormatter(object):
 class Command(BaseCommand):
 
     def add_arguments(self, parser):
-        parser.add_argument('appname', nargs='+')
+        parser.add_argument('appname', nargs='*')
         parser.add_argument(
             '-a', action='store_true', dest='all_applications',
-            help='Automaticly include all applications from '
-            'INSTALLED_APPS'
+            help='Automatically include all applications from '
+            'INSTALLED_APPS.'
         )
         parser.add_argument(
             '-o', action='store', dest='outputfile',
-            help='Render output file. Type of output dependend '
-            'on file extensions. Use png,jpg or pdf to render '
-            'graph to image to.'
+            help='Render output file. Applies only for -o. '
+            'File format depends on file extension, use png, jpg or pdf.'
         )
         parser.add_argument(
             '-d', action='store', dest='direction', default='TB',
-            help='Choose the chart direction. Default: "TB". Available '
-            'options: %s.' % get_direction_options_string()
+            help='Choose the chart direction. Applies only for -o. Default: "TB". '
+            'Available options: %s.' % get_direction_options_string()
         )
         parser.add_argument(
             '--scale', '-p', action='store', dest='scale', type=int,
@@ -172,17 +195,17 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--style', '-s', action='store', dest='style', default='nofunky',
-            help='Choose the output style. Default: "nofunky". Available '
-            'options: %s.' % get_style_options_string()
+            help='Choose the output style. Applies only for -o. Default: "nofunky". '
+            'Available options: %s.' % get_style_options_string()
         )
         parser.add_argument(
-            '-l', action='append', dest='labels',
-            help='Labels to add to the field attributes. Available labels: %s'
-            % ', '.join(FIELD_LABELS)
+            '-l', action='append', dest='labels', metavar='LABEL',
+            help='Label to add to the field attributes. '
+            'Can be used multiple times. '
+            'Available labels: %s.' % ', '.join(FIELD_LABELS)
         )
 
-    help = 'Generating model class diagram for yuml.me'
-    label = 'application name'
+    help = 'Generate model class diagram using yUML (http://yuml.me).'
 
     def validate_options(self, **opts):
         """
@@ -204,17 +227,16 @@ class Command(BaseCommand):
         Kwargs:
             **options: All options from the main OptionParser
         """
-        args = options.pop('appname')
         self.validate_options(**options)
 
-        if len(args) < 1:
+        if len(options['appname']) < 1:
             if options['all_applications']:
                 applications = get_apps()
             else:
                 raise CommandError("Need one or more arguments for appname.")
         else:
             try:
-                applications = [get_app(label) for label in args]
+                applications = [get_app(label) for label in options['appname']]
             except ImproperlyConfigured as e:
                 raise CommandError("Specified application not found: %s" % e)
 
@@ -223,30 +245,25 @@ class Command(BaseCommand):
         if options['outputfile']:
             self.render(statements, **options)
         else:
-            seen = set()
-            for s in statements:
-                if s in seen:
-                    continue
-                print(s)
-                seen.add(s)
+            self.stdout.write('\n'.join(statements))
 
     def yumlfy(self, applications, labels):
         F = YUMLFormatter()
         model_list = []
         arrow_list = []
-        external_model = set()
+        external_models = set()
         for app_module in applications:
             models = get_models(app_module)
             for m in models:
                 string = F.label(m) + F.PIPE
-                fields = [f for f in m._meta.fields if not f.auto_created]
+                fields = get_explicit_direct_concrete_fields(m)
                 for field in fields:
                     string += F.field(field, labels=labels)
-                    if field.rel:
+                    if field.is_relation:
                         arrow_list.append(F.relation(m, field.rel))
                         if get_app(field.rel.to._meta.app_label) not in applications:
-                            external_model.add(field.rel.to)
-                fields = [f for f in m._meta.many_to_many]
+                            external_models.add(field.rel.to)
+                fields = [f for f in m._meta.get_fields() if f.is_relation and f.many_to_many and not f.auto_created]
                 for field in fields:
                     string += F.field(field)
                     if field.rel.through._meta.auto_created:
@@ -254,37 +271,41 @@ class Command(BaseCommand):
                     else:
                         arrow_list.append(F.through(m, field.rel))
                     if get_app(field.rel.to._meta.app_label) not in applications:
-                        external_model.add(field.rel.to)
+                        external_models.add(field.rel.to)
                 model_list.append(F.wrap(string))
                 for parent in m._meta.parents:
                     arrow_list.append(F.inherit(m, parent))
                     if get_app(parent._meta.app_label) not in applications:
-                        external_model.add(parent)
+                        external_models.add(parent)
 
-        for ext in external_model:
+        for ext in external_models:
             model_list.append(F.external(ext))
 
         return model_list + arrow_list
 
     def render(self, statements, **options):
-
+        from django.utils.six.moves.urllib.parse import urlencode
+        from django.utils.six.moves.urllib.request import urlopen
+        from django.utils.six.moves.urllib.error import HTTPError
+        import os
 
         output_file = options['outputfile']
-        output_ext  = os.path.splitext(output_file)[1]
-        dsl_text    = ",".join(statements)
+        output_ext = os.path.splitext(output_file)[1]
+        dsl_text = ",".join(statements)
 
-        data = urlencode({'dsl_text': dsl_text}).encode('utf8')
-        url  = YUMLME_URL % options
-        print('Calling: %s' % url)
+        data = urlencode({'dsl_text': dsl_text})
+        data = data.encode('ascii')
+        url = YUMLME_URL % options
+        self.stdout.write('Calling: %s' % url)
         try:
             yuml_response = urlopen(url, data)
         except HTTPError as e:
-            raise CommandError("Error occured while creating dsl, %s" % e)
+            raise CommandError("Error occured while creating DSL, %s" % e)
 
-        png_file = yuml_response.read()
+        png_file = yuml_response.read().decode('utf-8')
         get_file = png_file.replace('.png', output_ext)
         url = 'http://yuml.me/%s' % get_file
-        print('Calling: %s' % url)
+        self.stdout.write('Calling: %s' % url)
         try:
             yuml_response = urlopen(url, data)
         except HTTPError as e:
@@ -292,6 +313,6 @@ class Command(BaseCommand):
                                % (output_file, e))
 
         resp = yuml_response.read()
-        f = open(output_file, 'w+')
+        f = open(output_file, 'wb')
         f.write(resp)
         f.close()
