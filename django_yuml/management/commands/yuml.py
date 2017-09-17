@@ -2,12 +2,29 @@
 
 
 """
-from optparse import make_option
 
+import os
+from six.moves.urllib.request import urlopen
+from six.moves.urllib.parse import urlencode
+from six.moves.urllib.error import HTTPError
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models.fields import NOT_PROVIDED
-from django.db.models.loading import get_models, get_apps, get_app
 from django.core.exceptions import ImproperlyConfigured
+
+
+
+try:
+    from django.db.models.loading import get_models, get_apps, get_app
+except ImportError:
+    from django.apps import apps
+    get_models = apps.get_models
+
+    def get_apps():
+        return apps.app_configs.keys()
+
+    def get_app(app):
+        return apps.app_configs[app]
+
 
 YUMLME_URL = "http://yuml.me/diagram/%(style)s;scale:%(scale)s;dir:%(direction)s;/class/"
 
@@ -18,7 +35,7 @@ STYLES = {
 }
 
 DIRECTIONS = {
-    'LR' : 'Left to right', 
+    'LR' : 'Left to right',
     'RL' : 'Right to left',
     'TB' : 'Top down'
 }
@@ -80,7 +97,7 @@ class YUMLFormatter(object):
         else:
             t = field.__class__.__name__
             t = t.replace('Field', '')
-        
+
         if labels:
             field_labels = []
             for label in labels:
@@ -130,43 +147,40 @@ class YUMLFormatter(object):
 
 
 class Command(BaseCommand):
-    option_list = BaseCommand.option_list + (
-        make_option(
+
+    def add_arguments(self, parser):
+        parser.add_argument('appname', nargs='+')
+        parser.add_argument(
             '-a', action='store_true', dest='all_applications',
             help='Automaticly include all applications from '
             'INSTALLED_APPS'
-        ),
-        make_option(
-            '-e', action='store', dest='exclude',
-            help='Exclude applications matching pattern.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-o', action='store', dest='outputfile',
             help='Render output file. Type of output dependend '
             'on file extensions. Use png,jpg or pdf to render '
             'graph to image to.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-d', action='store', dest='direction', default='TB',
             help='Choose the chart direction. Default: "TB". Available '
             'options: %s.' % get_direction_options_string()
-        ),
-        make_option(
-            '--scale', '-p', action='store', dest='scale', type=int, 
+        )
+        parser.add_argument(
+            '--scale', '-p', action='store', dest='scale', type=int,
             default=100, help='Set a scale percentage. Applies only for -o.'
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '--style', '-s', action='store', dest='style', default='nofunky',
             help='Choose the output style. Default: "nofunky". Available '
             'options: %s.' % get_style_options_string()
-        ),
-        make_option(
+        )
+        parser.add_argument(
             '-l', action='append', dest='labels',
             help='Labels to add to the field attributes. Available labels: %s'
             % ', '.join(FIELD_LABELS)
         )
-    )
-    args = '[appname appname]'
+
     help = 'Generating model class diagram for yuml.me'
     label = 'application name'
 
@@ -190,6 +204,7 @@ class Command(BaseCommand):
         Kwargs:
             **options: All options from the main OptionParser
         """
+        args = options.pop('appname')
         self.validate_options(**options)
 
         if len(args) < 1:
@@ -200,7 +215,7 @@ class Command(BaseCommand):
         else:
             try:
                 applications = [get_app(label) for label in args]
-            except ImproperlyConfigured, e:
+            except ImproperlyConfigured as e:
                 raise CommandError("Specified application not found: %s" % e)
 
         statements = self.yumlfy(applications, options['labels'])
@@ -208,7 +223,12 @@ class Command(BaseCommand):
         if options['outputfile']:
             self.render(statements, **options)
         else:
-            print statements
+            seen = set()
+            for s in statements:
+                if s in seen:
+                    continue
+                print(s)
+                seen.add(s)
 
     def yumlfy(self, applications, labels):
         F = YUMLFormatter()
@@ -247,30 +267,28 @@ class Command(BaseCommand):
         return model_list + arrow_list
 
     def render(self, statements, **options):
-        import urllib
-        import urllib2
-        import os
+
 
         output_file = options['outputfile']
         output_ext  = os.path.splitext(output_file)[1]
         dsl_text    = ",".join(statements)
 
-        data = urllib.urlencode({'dsl_text': dsl_text})
+        data = urlencode({'dsl_text': dsl_text}).encode('utf8')
         url  = YUMLME_URL % options
-        print 'Calling: ', url
+        print('Calling: %s' % url)
         try:
-            yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError, e:
+            yuml_response = urlopen(url, data)
+        except HTTPError as e:
             raise CommandError("Error occured while creating dsl, %s" % e)
 
         png_file = yuml_response.read()
         get_file = png_file.replace('.png', output_ext)
         url = 'http://yuml.me/%s' % get_file
-        print 'Calling: ', url
+        print('Calling: %s' % url)
         try:
-            yuml_response = urllib2.urlopen(url, data)
-        except urllib2.HTTPError, e:
-            raise CommandError("Error occured while generating %s, %s" 
+            yuml_response = urlopen(url, data)
+        except HTTPError as e:
+            raise CommandError("Error occured while generating %s, %s"
                                % (output_file, e))
 
         resp = yuml_response.read()
